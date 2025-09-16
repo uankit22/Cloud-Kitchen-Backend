@@ -32,11 +32,11 @@ function decrypt(text) {
     return decrypted;
   } catch (err) {
     console.error("Decryption failed:", err.message);
-    return text; // fallback to original
+    return text; // fallback
   }
 }
 
-// middleware
+// Middleware to protect routes
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "No token provided" });
@@ -61,6 +61,10 @@ router.post("/", async (req, res) => {
     return res.status(400).json({ error: "Type must be Revenue or Expense" });
   }
 
+  if (typeof amount !== "number") {
+    return res.status(400).json({ error: "Amount must be a number" });
+  }
+
   const { data, error } = await supabase
     .from("transactions")
     .insert([
@@ -68,7 +72,7 @@ router.post("/", async (req, res) => {
         type,
         description: encrypt(description),
         category_source: encrypt(category_source),
-        amount: encrypt(amount),
+        amount, // keep numeric
         user_id: req.user.user_id,
       },
     ]);
@@ -87,12 +91,11 @@ router.get("/", async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
-  // decrypt data
+  // decrypt text fields only
   const decryptedData = data.map((t) => ({
     ...t,
     description: decrypt(t.description),
     category_source: decrypt(t.category_source),
-    amount: decrypt(t.amount),
   }));
 
   res.json(decryptedData);
@@ -107,18 +110,13 @@ router.get("/summary", async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
-  const decryptedData = allData.map((t) => ({
-    ...t,
-    type: t.type,
-    amount: Number(decrypt(t.amount)) || 0,
-  }));
-
-  const revenue = decryptedData
+  const revenue = allData
     .filter((t) => t.type === "Revenue")
-    .reduce((sum, t) => sum + t.amount, 0);
-  const expense = decryptedData
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const expense = allData
     .filter((t) => t.type === "Expense")
-    .reduce((sum, t) => sum + t.amount, 0);
+    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   const profit_loss = revenue - expense;
   res.json({ revenue, expense, profit_loss });
