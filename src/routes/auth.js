@@ -145,4 +145,18 @@ router.post("/set-restaurant", authMiddleware, async (req, res) => {
   res.json({ message: "Restaurant name set successfully" });
 });
 
+// ✅ get restaurant API
+router.get("/get-restaurant", authMiddleware, async (req, res) => {
+  const { data, error } = await supabase
+    .from("users")
+    .select("restaurant_name")
+    .eq("id", req.user.user_id)
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  res.json({ restaurant_name: data?.restaurant_name || null });
+});
+
+
 export default router;
