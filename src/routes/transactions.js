@@ -1,12 +1,42 @@
 import express from "express";
 import supabase from "../db.js";
 import jwt from "jsonwebtoken";
-import { encrypt, decrypt } from "../utils/crypto.js"; // import encryption utils
+import crypto from "crypto";
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
 
-// Middleware to verify JWT
+// Encryption setup
+const algorithm = "aes-256-cbc";
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "0123456789abcdef0123456789abcdef"; // 32 bytes
+const IV_LENGTH = 16;
+
+// Utility functions
+function encrypt(text) {
+  if (!text) return "";
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(algorithm, Buffer.from(ENCRYPTION_KEY, "hex"), iv);
+  let encrypted = cipher.update(String(text), "utf8", "hex");
+  encrypted += cipher.final("hex");
+  return iv.toString("hex") + ":" + encrypted;
+}
+
+function decrypt(text) {
+  if (!text || typeof text !== "string" || !text.includes(":")) return text;
+  try {
+    const [ivHex, encryptedData] = text.split(":");
+    const iv = Buffer.from(ivHex, "hex");
+    const decipher = crypto.createDecipheriv(algorithm, Buffer.from(ENCRYPTION_KEY, "hex"), iv);
+    let decrypted = decipher.update(encryptedData, "hex", "utf8");
+    decrypted += decipher.final("utf8");
+    return decrypted;
+  } catch (err) {
+    console.error("Decryption failed:", err.message);
+    return text; // fallback to original
+  }
+}
+
+// middleware
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "No token provided" });
@@ -23,7 +53,7 @@ function authMiddleware(req, res, next) {
 
 router.use(authMiddleware);
 
-// Add transaction with encryption
+// Add transaction
 router.post("/", async (req, res) => {
   const { type, description, category_source, amount } = req.body;
 
@@ -38,7 +68,7 @@ router.post("/", async (req, res) => {
         type,
         description: encrypt(description),
         category_source: encrypt(category_source),
-        amount: encrypt(amount.toString()),
+        amount: encrypt(amount),
         user_id: req.user.user_id,
       },
     ]);
@@ -47,7 +77,7 @@ router.post("/", async (req, res) => {
   res.json(data);
 });
 
-// Get all transactions with decryption
+// Get all transactions
 router.get("/", async (req, res) => {
   const { data, error } = await supabase
     .from("transactions")
@@ -57,18 +87,18 @@ router.get("/", async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
-  // decrypt sensitive fields
+  // decrypt data
   const decryptedData = data.map((t) => ({
     ...t,
     description: decrypt(t.description),
     category_source: decrypt(t.category_source),
-    amount: Number(decrypt(t.amount)),
+    amount: decrypt(t.amount),
   }));
 
   res.json(decryptedData);
 });
 
-// Get profit/loss summary with decryption
+// Get profit/loss summary
 router.get("/summary", async (req, res) => {
   const { data: allData, error } = await supabase
     .from("transactions")
@@ -77,16 +107,16 @@ router.get("/summary", async (req, res) => {
 
   if (error) return res.status(400).json({ error: error.message });
 
-  // decrypt amounts for calculation
-  const allDataDecrypted = allData.map((t) => ({
+  const decryptedData = allData.map((t) => ({
     ...t,
-    amount: Number(decrypt(t.amount)),
+    type: t.type,
+    amount: Number(decrypt(t.amount)) || 0,
   }));
 
-  const revenue = allDataDecrypted
+  const revenue = decryptedData
     .filter((t) => t.type === "Revenue")
     .reduce((sum, t) => sum + t.amount, 0);
-  const expense = allDataDecrypted
+  const expense = decryptedData
     .filter((t) => t.type === "Expense")
     .reduce((sum, t) => sum + t.amount, 0);
 
