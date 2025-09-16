@@ -47,21 +47,18 @@ router.get("/summary", async (req, res) => {
 });
 // Delete transaction by ID
 // Delete transaction by ID
+// Delete transaction by ID
 router.delete("/:id", async (req, res) => {
   const { id } = req.params;
 
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("transactions")
     .delete()
     .eq("id", id);
 
   if (error) return res.status(400).json({ error: error.message });
 
-  if (!data || data.length === 0) {
-    return res.status(404).json({ error: "Transaction not found" });
-  }
-
-  res.json({ message: "Transaction deleted successfully", data });
+  res.json({ message: "Transaction deleted successfully" });
 });
 
 export default router;
