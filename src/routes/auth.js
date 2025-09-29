@@ -21,13 +21,15 @@ router.post("/send-otp", async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
 
   // configure nodemailer
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+const transporter = nodemailer.createTransport({
+  host: "smtp-relay.sendinblue.com", // Sendinblue SMTP
+  port: 587,                         // Use 587 or 465
+  secure: false,                      // true if port 465
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
   // send OTP with HTML template
   const htmlTemplate = `
