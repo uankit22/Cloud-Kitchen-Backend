@@ -216,7 +216,7 @@ const transporter = nodemailer.createTransport({
   `;
 
 await transporter.sendMail({
-  from: `"Expense Tracking" <${process.env.SMTP_USER}>`,
+  from: `"Expense Tracking" <urameshwar131@gmail.com>`, // verified sender email
   to: email,
   subject: "Your OTP Code",
   html: htmlTemplate,
