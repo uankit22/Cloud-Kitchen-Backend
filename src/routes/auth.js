@@ -124,6 +124,7 @@ await axios.post(
 );
 
 
+
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Sendinblue API error:", err.response?.data || err.message);
