@@ -107,21 +107,22 @@ router.post("/send-otp", async (req, res) => {
   `;
 
   try {
-    await axios.post(
-      "https://api.sendinblue.com/v3/smtp/email",
-      {
-        sender: { name: "Expense Tracking", email: process.env.SMTP_USER },
-        to: [{ email }],
-        subject: "Your OTP Code",
-        htmlContent: htmlTemplate,
-      },
-      {
-        headers: {
-          "api-key": process.env.SENDINBLUE_API_KEY,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+await axios.post(
+  "https://api.sendinblue.com/v3/smtp/email",
+  {
+    sender: { name: "Expense Tracking", email: "urameshwar131@gmail.com" },
+    to: [{ email }],
+    subject: "Your OTP Code",
+    htmlContent: htmlTemplate,
+  },
+  {
+    headers: {
+      "api-key": process.env.SENDINBLUE_API_KEY,
+      "Content-Type": "application/json",
+    },
+  }
+);
+
 
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
